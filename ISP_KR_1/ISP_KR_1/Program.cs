@@ -41,26 +41,19 @@ internal class Program
     private static void Main(string[] args)
     {
         //-----------------------------------------------------------------------
-        double x;
-        Console.WriteLine("Enter x");
-        x = Convert.ToDouble(Console.ReadLine());
-        IntegralCalculator IC = new IntegralCalculator(x, x+1);
+        double x1, x2;
+        Console.Write("Enter x1: ");
+        x1 = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Enter x2: ");
+        x2 = Convert.ToDouble(Console.ReadLine());
+
+        IntegralCalculator IC = new IntegralCalculator(x1, x2);
         IC.Notification += delegate (string? message) { Console.WriteLine(message + "\n"); };
-        IC.Percenting += delegate (long p)
-        {
-            Console.SetCursorPosition(Console.CursorLeft, Console.CursorTop-1);
-            Console.Write("[");
-            for(int i = 0; i < 100; i++)
-            {
-                if (i < p / 100) Console.Write("#");
-                else Console.Write(" ");
-            }
-            Console.WriteLine($"] {Convert.ToDouble(p) / 100}%");
-        };
         Thread th = new Thread(IC.Sin);
+        th.Name = "Поток 1";
         IC.thread = th;
-        Console.WriteLine(IC.thread.ManagedThreadId);
-        IC.Sin();
+        IC.ProgressBar.Percenting += IC.ProgressBar.GetProgressBar;
+        th.Start();
 
         //-----------------------------------------------------------------------
     }

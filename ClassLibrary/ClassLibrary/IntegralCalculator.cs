@@ -5,9 +5,10 @@ namespace ClassLibrary
     public class IntegralCalculator
     {
         public Thread? thread;
+        public PercentProgressBar ProgressBar;
         public delegate void IntegralCalculatorDelegate(string? message);
         public event IntegralCalculatorDelegate? Notification;
-        public delegate void ProgressDelegate(long p);
+        public delegate void ProgressDelegate(Thread? th, long p);
         public event ProgressDelegate? Percenting;
 
         double Step = 0.000_000_01;
@@ -17,6 +18,7 @@ namespace ClassLibrary
             left_x = x1;
             right_x = x2;
             result = 0;
+            ProgressBar = new PercentProgressBar();
         }
 
         public void Sin()
@@ -26,15 +28,17 @@ namespace ClassLibrary
             Notification?.Invoke("Начало подсчёта интеграла sin");
 
             // Переменные для работы с процентным прогрессом
-            long fullWork = Convert.ToInt64((right_x - left_x) / Step);
-            long percentWork = fullWork / 10000, doneWork = 0;
+            ProgressBar.BarPosition = (Console.CursorLeft, Console.CursorTop);
+            ProgressBar.FullWork = Convert.ToInt64((right_x - left_x) / Step);
+            ProgressBar.OnePercentOfWork = ProgressBar.FullWork / 100;
+            ProgressBar.Name = thread?.Name;
 
             // Начало подсчета синуса
             double sin = 0;
             for (double x = left_x; x <= right_x; x += Step)
             {
                 // Увеличение времени работы метода
-                for (int i = 0; i < 100_000; i++)
+                for (int i = 0; i < 100; i++)
                 {
                     int t = i * i;
                 }
@@ -44,8 +48,9 @@ namespace ClassLibrary
                 double s = Math.Sin(x);
                 //Console.WriteLine(s);
                 sin += s;
-                doneWork++;
-                if(doneWork % percentWork == 0) Percenting?.Invoke(doneWork / percentWork);
+                ProgressBar.TotalWorkUp();
+                //if(doneWork % onePercentOfWork == 0) Percenting?.Invoke(thread, doneWork / onePercentOfWork);
+                
             }
             sin *= Step;
             Console.WriteLine(sin);

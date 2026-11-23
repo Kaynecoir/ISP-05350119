@@ -1,25 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.Linq;
 
 namespace ClassLibrary
 {
-    internal class PercentProgressBar
+    public class PercentProgressBar
     {
+        public delegate void ProgressDelegate();
+        public event ProgressDelegate? Percenting;
         public (int, int) BarPosition;
-        public string Name;
+        public string? Name;
         public long FullWork; // 100.00%
-        public long OnePercentOfWork;
-        public double PercentWork; // 0.01%
-        private int TotalWork;
+        public long OnePercentOfWork; // 1%
+        public int PercentWork; 
+        private long TotalWork;
+        public PercentProgressBar()
+        {
+            BarPosition = (Console.CursorLeft, Console.CursorTop);
+            Name = "";
+            FullWork = 0;
+            OnePercentOfWork = 0;
+            TotalWork = 0;
+            PercentWork = 0;
+            Percenting += ChangePercent;
+        }
         public PercentProgressBar(string name, long fullWork)
         {
             BarPosition = (Console.CursorLeft, Console.CursorTop);
             Name = name;
             FullWork = fullWork;
-            OnePercentOfWork = fullWork / 100_00;
+            OnePercentOfWork = fullWork / 100;
             TotalWork = 0;
             PercentWork = 0;
+            Percenting += ChangePercent;
         }
         public double GetTotalWork()
         {
@@ -27,12 +41,13 @@ namespace ClassLibrary
         }
         public void SetWork(long work)
         {
-            PercentWork = work / TotalWork / 100.0;
+            TotalWork = work;
+            Percenting?.Invoke();
         }
         public void TotalWorkUp(int up = 1)
         {
             TotalWork += up;
-            if (TotalWork % OnePercentOfWork == 0) PercentWork++;
+            if (TotalWork % OnePercentOfWork == 0) Percenting?.Invoke();
         }
         public void GetProgressBar()
         {
@@ -40,10 +55,16 @@ namespace ClassLibrary
             Console.Write($"{Name} [");
             for (int i = 0; i < 100; i++)
             {
-                if (i < TotalWork) Console.Write("#");
+                if (i < PercentWork) Console.Write("=");
+                else if (i == PercentWork) Console.Write(">");
                 else Console.Write(" ");
             }
-            Console.WriteLine($"] {TotalWork}%");
+            Console.WriteLine($"] {PercentWork}%");
+        }
+
+        public void ChangePercent()
+        {
+            PercentWork = (int)(TotalWork / OnePercentOfWork);
         }
     }
 }
