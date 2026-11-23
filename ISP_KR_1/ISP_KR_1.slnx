@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../ClassLibrary/ClassLibrary/ClassLibrary.csproj" />
+  <Project Path="ISP_KR_1/ISP_KR_1.csproj" />
+</Solution>
