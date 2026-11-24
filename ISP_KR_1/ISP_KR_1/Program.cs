@@ -1,66 +1,94 @@
-﻿using ClassLibrary;
-using System.Diagnostics;
+﻿using System;
+using System.Threading;
+using ClassLibrary;
 
-class Reader
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+// Ускоренные параметры для демонстрации
+double demoStep = 0.000_01;
+long demoDelay = 1_000;
+int countThread = 7;
+
+static string Bar(int p, int width = 20)
 {
-    // создаем семафор
-    static Semaphore sem = new Semaphore(3, 3);
-    Thread myThread;
-    int count = 0;// счетчик чтения
-
-    public Reader(int i)
-    {
-        myThread = new Thread(Read);
-        myThread.Name = $"Читатель {i}";
-        myThread.Start();
-    }
-
-    public void Read()
-    {
-        while (count < 3)
-        {
-            count++;
-            sem.WaitOne();  // ожидаем, когда освободиться место
-
-            Console.WriteLine($"{Thread.CurrentThread.Name} входит в библиотеку {count} раз");
-
-            Thread.Sleep(1000);
-
-            Console.WriteLine($"{Thread.CurrentThread.Name} покидает библиотеку");
-
-            sem.Release();  // освобождаем место
-
-            Thread.Sleep(1000);
-        }
-    }
+    int filled = p * width / 100;
+    return "[" + new string('=', filled) + new string(' ', width - filled) + "]";
 }
 
-internal class Program
+void ProgressEvent(IntegralProgressArgs args, int width = 20)
 {
-    
-    private static void Main(string[] args)
-    {
-        //-----------------------------------------------------------------------
-        int n = 2;
-        double x1, x2;
-        Console.Write("Enter x1: ");
-        x1 = Convert.ToDouble(Console.ReadLine());
-        Console.Write("Enter x2: ");
-        x2 = Convert.ToDouble(Console.ReadLine());
-
-        IntegralCalculator[] calculators = new IntegralCalculator[n];
-        for (int i = 1; i <= n; i++)
-        {
-            calculators[i - 1] = new IntegralCalculator(x1, x2);
-            //calculators[i - 1].Notification += delegate (string? message) { Console.WriteLine(message); };
-            Thread th = new Thread(calculators[i - 1].Sin);
-            th.Name = "Поток " + i;
-            calculators[i - 1].thread = th;
-            calculators[i - 1].BarPositionLeft = 0;
-            calculators[i - 1].BarPositionTop = 5 + i * 3;
-            th.Start();
-        }
-
-        //-----------------------------------------------------------------------
-    }
+    //Console.SetCursorPosition(0, consTop + 2 * (args.ThreadId - 10));
+    Console.WriteLine($"Поток {args.ThreadId:D10}: {Bar(args.Percent, width)} {args.Percent}%");
 }
+void FinishedEvent(IntegralFinishedArgs args)
+{
+    //Console.SetCursorPosition(args.PositionLeft, args.PositionTop);
+    Console.WriteLine($"Поток {args.ThreadId:D10}: Завершён с результатом: {args.Result:F15}  время: {args.ElapsedTicks} тик.\n");
+}
+
+double x1, x2;
+Console.Write("Enter x1: ");
+x1 = Convert.ToDouble(Console.ReadLine());
+Console.Write("Enter x2: ");
+x2 = Convert.ToDouble(Console.ReadLine());
+
+// Выполнение одного потока с прогрессом и змером времени
+Console.WriteLine("\n=== 4.1 Одиночный поток ===");
+var one = new IntegralCalculator(1);   // ограничение в один поток
+one.Step = demoStep; one.DelayOps = demoDelay;
+one.Progress += (_, e) => ProgressEvent(e, 10);
+one.IntegralFinished += (_, e) => FinishedEvent(e);
+var t = new Thread(() => one.Sin(x1, x2)) { Name = "Calc" };
+t.Start();
+t.Join();
+
+
+// Выполняет два потока с приоритетами Highest и Lowest
+Console.WriteLine("\n=== 4.2 Приоритеты Highest/Lowest ===\n");
+var two = new IntegralCalculator(int.MaxValue); // без ограничений по количеству потоков
+two.Step = demoStep; two.DelayOps = demoDelay;
+two.Progress += (_, e) => ProgressEvent(e, 100);
+two.IntegralFinished += (_, e) => FinishedEvent(e);
+
+var hi = new Thread(() => two.Sin(x1, x2));
+var lo = new Thread(() => two.Sin(x1, x2));
+hi.Priority = ThreadPriority.Highest;
+lo.Priority = ThreadPriority.Lowest;
+hi.Start(); lo.Start();
+hi.Join(); lo.Join();
+
+
+// Выполняет ТОЛЬКО ОДИН поток выполняет
+Console.WriteLine($"\n=== 5 Ограничение: 1 поток одновременно (запуск {countThread}) ===\n");
+var gate1 = new IntegralCalculator(1);
+gate1.Step = demoStep; gate1.DelayOps = demoDelay;
+//gate1.Progress += (_, e) => ProgressEvent(e, 100);
+gate1.IntegralFinished += (_, e) =>
+{
+    FinishedEvent(e);
+};
+for (int i = 0; i < countThread; i++)
+{
+    var tt = new Thread(() => gate1.Sin(x1, x2));
+    tt.Start(); tt.Join();
+}
+
+
+// Выполняет N потоков одновременно 
+Console.WriteLine($"\n=== 6 Ограничение: 3 потока одновременно (запуск {countThread}) ===\n");
+int n = 3;
+var gateN = new IntegralCalculator(n);
+gateN.Step = demoStep; gateN.DelayOps = demoDelay;
+gateN.Progress += (_, e) => ProgressEvent(e, 100);
+gateN.IntegralFinished += (_, e) =>
+{
+    FinishedEvent(e);
+};
+Thread[] arr = new Thread[countThread];
+for (int i = 0; i < countThread; i++) arr[i] = new Thread(() => gateN.Sin(x1, x2));
+foreach (var tt in arr) tt.Start();
+foreach (var tt in arr) tt.Join();
+
+Console.WriteLine("\nЗадание 1 выполнено.");
+
+// ------------------------------
