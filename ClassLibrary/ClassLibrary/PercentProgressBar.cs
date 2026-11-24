@@ -15,25 +15,28 @@ namespace ClassLibrary
         public long OnePercentOfWork; // 1%
         public int PercentWork; 
         private long TotalWork;
+        object locker = new();
         public PercentProgressBar()
         {
-            BarPosition = (Console.CursorLeft, Console.CursorTop);
+            BarPosition = (0, 0);
             Name = "";
-            FullWork = 0;
-            OnePercentOfWork = 0;
+            FullWork = 100;
+            OnePercentOfWork = 1;
             TotalWork = 0;
             PercentWork = 0;
             Percenting += ChangePercent;
+            Percenting += GetProgressBar;
         }
         public PercentProgressBar(string name, long fullWork)
         {
-            BarPosition = (Console.CursorLeft, Console.CursorTop);
+            BarPosition = (0, 0);
             Name = name;
             FullWork = fullWork;
             OnePercentOfWork = fullWork / 100;
             TotalWork = 0;
             PercentWork = 0;
             Percenting += ChangePercent;
+            Percenting += GetProgressBar;
         }
         public double GetTotalWork()
         {
@@ -51,15 +54,33 @@ namespace ClassLibrary
         }
         public void GetProgressBar()
         {
-            Console.SetCursorPosition(BarPosition.Item1, BarPosition.Item2);
-            Console.Write($"{Name} [");
-            for (int i = 0; i < 100; i++)
+            lock(new object())
             {
-                if (i < PercentWork) Console.Write("=");
-                else if (i == PercentWork) Console.Write(">");
-                else Console.Write(" ");
+                Console.SetCursorPosition(BarPosition.Item1, BarPosition.Item2);
+                Console.Write($"{Name} [");
+                for (int i = 0; i < 100; i++)
+                {
+                    if (i < PercentWork) Console.Write("=");
+                    else if (i == PercentWork) Console.Write(">");
+                    else Console.Write(" ");
+                }
+                Console.WriteLine($"] {PercentWork}%");
             }
-            Console.WriteLine($"] {PercentWork}%");
+        }
+        public static void GetProgressBar(string name, int percentWork, int conLeft, int conTop)
+        {
+            lock (new object())
+            {
+                Console.SetCursorPosition(conLeft, conTop);
+                Console.Write($"{name} [");
+                for (int i = 0; i < 100; i++)
+                {
+                    if (i < percentWork) Console.Write("=");
+                    else if (i == percentWork) Console.Write(">");
+                    else Console.Write(" ");
+                }
+                Console.WriteLine($"] {percentWork}%");
+            }
         }
 
         public void ChangePercent()
